@@ -12,87 +12,69 @@
     /* Add some basic spacing */
     .weather-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr; /* Two columns */
-      gap: 10px 20px; /* Row gap, Column gap */
-      padding: 15px;
+      grid-template-columns: 1fr; /* Single column */
+      /* gap: 10px 20px; */ /* Original gap */
+      padding: 2px; /* Further reduced padding */
+      /* Align items to the start (left) if needed */
+      /* justify-items: start; */
+      gap: 2px 20px; /* Keep reduced row gap */
     }
     .weather-item {
-      text-align: center;
+      text-align: left; /* Align text left */
+      font-size: 1.0em; /* Keep font size */
+      font-weight: 400; /* Reset font weight */
+      line-height: 1.1; /* Added line-height */
     }
     .weather-item .value {
-      font-size: 1.8em; /* Larger font for values */
-      font-weight: 600;
-      display: block; /* Ensure value is on its own line */
-      margin-bottom: 2px;
+      font-size: 0.9em; /* Make value font smaller */
+      font-weight: 600; /* Keep value bold */
+      /* display: block; */ /* Removed */
+      /* margin-bottom: 2px; */ /* Removed */
     }
     .weather-item .label {
-      font-size: 0.9em;
-      color: #555; /* Slightly lighter label */
-      display: block;
+      /* font-size: 0.9em; */ /* Removed */
+      color: #555;
+      /* display: block; */ /* Removed */
     }
-    .timestamp {
-      text-align: center;
-      font-size: 0.8em;
-      color: #777;
-      margin-top: 15px;
-      padding-bottom: 5px;
-    }
-    .main-temp {
-        font-size: 4em;
-        font-weight: bold;
-        text-align: center;
-        margin: 10px 0;
-    }
+    /* Removed .timestamp styles */
+    /* Removed .main-temp styles */
   </style>
 </head>
 <body class="environment trmnl">
   <div class="screen">
-    <div class="view view--full">
+    <div class="view view--half-vertical"> <!-- Keep half-vertical layout -->
       <div class="layout">
-
-        <div class="main-temp">
-          {{ temperature_f | default: '--' }}&deg;F
-        </div>
-
-        <div class="weather-grid">
+        <!-- Removed columns wrapper -->
+        <div class="weather-grid"> <!-- All items now in the grid -->
           <div class="weather-item">
-            <span class="value">{{ wind_speed_mph | default: '--' }} <small>mph</small></span>
-            <span class="label">Wind ({{ wind_direction_cardinal | default: 'N/A' }})</span>
+            <span class="label">Temperature:</span>&nbsp;<span class="value">{{ temperature_f | default: '--' }}&deg;F</span>
           </div>
           <div class="weather-item">
-            <span class="value">{{ wind_gust_mph | default: '--' }} <small>mph</small></span>
-            <span class="label">Gust</span>
-          </div>
-          <div class="weather-item">
-            <span class="value">{{ humidity_percent | default: '--' }}<small>%</small></span>
-            <span class="label">Humidity</span>
-          </div>
+              <span class="label">Wind:</span>&nbsp;<span class="value">{{ wind_speed_mph | default: '--' }} mph ({{ wind_direction_cardinal | default: 'N/A' }})</span>
+           </div>
+           <!-- Removed Gust item -->
            <div class="weather-item">
-            <span class="value">{{ pressure_inhg | default: '--' }} <small>inHg</small></span>
-            <span class="label">Pressure</span>
+              <span class="label">Humidity:</span>&nbsp;<span class="value">{{ humidity_percent | default: '--' }}%</span>
           </div>
           <div class="weather-item">
-            <span class="value">{{ uv_index | default: '--' }}</span>
-            <span class="label">UV Index</span>
+             <span class="label">Pressure Trend:</span>&nbsp;<span class="value">
+                {% if pressure_trend == 'rising' %}↑
+                {% elsif pressure_trend == 'falling' %}↓
+                {% elsif pressure_trend == 'steady' %}→
+                {% else %}--
+                {% endif %}
+             </span>
           </div>
           <div class="weather-item">
-            <span class="value">{{ daily_rain_in | default: '0.00' }} <small>in</small></span>
-            <span class="label">Daily Rain</span>
+             <span class="label">UV Index:</span>&nbsp;<span class="value">{{ uv_index | default: '--' }}</span>
           </div>
-           <div class="weather-item">
-            <span class="value">{{ rain_rate_in_hr | default: '0.00' }} <small>in/hr</small></span>
-            <span class="label">Rain Rate</span>
-          </div>
-           <div class="weather-item">
-            <span class="value">{{ battery_volts | default: '--' }} <small>V</small></span>
-            <span class="label">Battery</span>
+          <div class="weather-item">
+             <span class="label">Daily Rain:</span>&nbsp;<span class="value">{{ daily_rain_in | default: '0.00' }} in</span>
           </div>
         </div>
 
-        <div class="timestamp">
-          Updated: {{ timestamp_utc | date: "%Y-%m-%d %I:%M %p %Z" | default: 'Never' }}
-        </div>
-
+        <!-- Removed timestamp div -->
+        <!-- Removed columns wrapper -->
       </div>
 
       <div class="title_bar">
