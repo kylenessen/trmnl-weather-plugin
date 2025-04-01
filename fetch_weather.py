@@ -60,58 +60,39 @@ try:
         print(f"Response: {data}")
         exit(1)
 
-    # Get the latest 'obs_st' observation (Tempest device)
-    latest_obs_st = None
-    for obs_data in data['obs']:
-         if obs_data.get('type') == 'obs_st':
-              latest_obs_st = obs_data
-              break # Use the first (most recent) one found
+    # Access the first observation dictionary directly
+    latest_obs = data['obs'][0]
+    print("Using observation data from data['obs'][0]")
 
-    if not latest_obs_st or 'obs' not in latest_obs_st or not latest_obs_st['obs']:
-         print("Error: No 'obs_st' type observation found in the station data.")
-         # Fallback or alternative handling could go here if needed
-         # For now, let's try finding *any* observation if obs_st isn't present
-         if data['obs'] and data['obs'][0].get('obs'):
-             print("Falling back to first available observation set.")
-             obs_values = data['obs'][0]['obs'][0] # Use the first observation set available
-             obs_type = data['obs'][0].get('type', 'unknown')
-             print(f"Using observation type: {obs_type}")
-         else:
-             print("Error: No usable observation data found at all.")
-             exit(1)
-    else:
-        obs_values = latest_obs_st['obs'][0] # obs_st has a nested obs array
-        print("Using 'obs_st' observation data.")
+    # --- Extract Data (Using keys from the API response) ---
+    timestamp_epoch = latest_obs.get('timestamp')
+    wind_lull_mps = latest_obs.get('wind_lull')
+    wind_avg_mps = latest_obs.get('wind_avg')
+    wind_gust_mps = latest_obs.get('wind_gust')
+    wind_direction_deg = latest_obs.get('wind_direction')
+    # Use station_pressure, fall back to barometric_pressure if needed
+    pressure_mb = latest_obs.get('station_pressure', latest_obs.get('barometric_pressure'))
+    temp_c = latest_obs.get('air_temperature')
+    humidity_pct = latest_obs.get('relative_humidity')
+    illuminance_lux = latest_obs.get('brightness')
+    uv_index = latest_obs.get('uv')
+    solar_radiation_wm2 = latest_obs.get('solar_radiation')
+    # 'precip' seems to be instantaneous rate in mm/min based on API docs
+    rain_accum_last_min_mm = latest_obs.get('precip', 0.0) # Default to 0 if missing
+    # The target API structure doesn't provide a direct real-time precip_type (0, 1, 2). Defaulting to 0 (none).
+    precip_type = 0
+    # Use final daily rain if available, otherwise use current daily rain
+    daily_rain_accum_mm = latest_obs.get('precip_accum_local_day_final', latest_obs.get('precip_accum_local_day'))
+    # Battery voltage is not available in this API response structure
 
-
-    # --- Extract Data (Index based on obs_st documentation) ---
-    # obs_st: [epoch, lull, avg, gust, dir, interval, pressure, temp, rh, lux, uv, solar, rain_min, precip_type, strike_dist, strike_count, battery, interval, daily_rain, rain_final, daily_rain_final, precip_analysis]
-    timestamp_epoch = obs_values[0]
-    wind_lull_mps = obs_values[1]
-    wind_avg_mps = obs_values[2]
-    wind_gust_mps = obs_values[3]
-    wind_direction_deg = obs_values[4]
-    pressure_mb = obs_values[6]
-    temp_c = obs_values[7]
-    humidity_pct = obs_values[8]
-    illuminance_lux = obs_values[9]
-    uv_index = obs_values[10]
-    solar_radiation_wm2 = obs_values[11]
-    rain_accum_last_min_mm = obs_values[12]
-    precip_type = obs_values[13] # 0=none, 1=rain, 2=hail
-    # strike_dist_km = obs_values[14] # Not requested
-    # strike_count = obs_values[15] # Not requested
-    battery_v = obs_values[16]
-    daily_rain_accum_mm = obs_values[18]
-    # Use final rain values if available (from Rain Check)
-    if len(obs_values) > 19 and obs_values[19] is not None:
-        rain_accum_last_min_mm = obs_values[19]
-    if len(obs_values) > 20 and obs_values[20] is not None:
-        daily_rain_accum_mm = obs_values[20]
+    # Check if essential data is missing
+    if timestamp_epoch is None or temp_c is None or pressure_mb is None:
+        print(f"Error: Essential data (timestamp, temperature, pressure) missing from observation: {latest_obs}")
+        exit(1)
 
     # --- Format Output Data ---
     output_data = {
-        "timestamp_utc": datetime.utcfromtimestamp(timestamp_epoch).isoformat() + "Z",
+        "timestamp_utc": datetime.utcfromtimestamp(timestamp_epoch).isoformat() + "Z" if timestamp_epoch else None,
         "temperature_f": celsius_to_fahrenheit(temp_c),
         "humidity_percent": round(humidity_pct, 1) if humidity_pct is not None else None,
         "wind_speed_mph": mps_to_mph(wind_avg_mps),
@@ -124,8 +105,8 @@ try:
         "pressure_inhg": mb_to_inhg(pressure_mb),
         "illuminance_lux": illuminance_lux,
         "solar_radiation_wm2": solar_radiation_wm2,
-        "battery_volts": round(battery_v, 2) if battery_v is not None else None,
-        "precip_type": "rain" if precip_type == 1 else ("hail" if precip_type == 2 else "none")
+        # Battery voltage removed as it's not in the API response
+        "precip_type": "rain" if precip_type == 1 else ("hail" if precip_type == 2 else "none") # Will always be "none" based on current logic
     }
 
     # --- Write to JSON File ---
@@ -140,7 +121,7 @@ except requests.exceptions.RequestException as e:
     exit(1)
 except (KeyError, IndexError, TypeError) as e:
     print(f"Error parsing API response: {e}")
-    print(f"Raw response data: {data}")
+    print(f"Raw response data: {response.text}") # Print raw text in case of JSON parsing error
     exit(1)
 except Exception as e:
     print(f"An unexpected error occurred: {e}")
