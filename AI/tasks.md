@@ -1,0 +1,4 @@
+- Change UTC to local time
+- Remove these fields: battery, rain rate, pressure
+- add these feilds: wind_direction, pressure_trend
+- Prettify the trmnl template
