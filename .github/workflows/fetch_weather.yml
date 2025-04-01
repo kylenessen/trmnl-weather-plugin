@@ -38,6 +38,11 @@ jobs:
           WF_TOKEN: ${{ secrets.WF_TOKEN }} # Use the secret token
         run: python fetch_weather.py
 
+      - name: Create deployment directory and move data
+        run: |
+          mkdir -p _site
+          mv weather_data.json _site/
+
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v5
@@ -45,8 +50,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload the specific data file to the root directory of the Pages site
-          path: ./weather_data.json
+          # Upload the directory containing the data file
+          path: ./_site
 
       - name: Deploy to GitHub Pages
         id: deployment
