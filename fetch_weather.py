@@ -49,20 +49,35 @@ if not API_TOKEN:
     exit(1)
 
 print(f"Fetching weather data for station {STATION_ID}...")
+raw_response_text = None # Initialize to store raw response
 
 try:
     response = requests.get(API_URL, timeout=15)
+    raw_response_text = response.text # Store raw text early
     response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
     data = response.json()
 
-    if not data or 'obs' not in data or not data['obs']:
-        print("Error: No observations found in API response.")
-        print(f"Response: {data}")
+    if not data or 'obs' not in data or not isinstance(data['obs'], list) or not data['obs']:
+        print("Error: No observations ('obs' array) found, is not a list, or is empty in API response.")
+        print(f"Raw Response: {raw_response_text}") # Print raw text
         exit(1)
 
-    # Access the first observation dictionary directly
-    latest_obs = data['obs'][0]
-    print("Using observation data from data['obs'][0]")
+    # Find the most recent observation
+    latest_obs = None
+    try:
+        # Sort by timestamp descending to get the latest first
+        data['obs'].sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+        latest_obs = data['obs'][0]
+        print(f"Using latest observation timestamp: {latest_obs.get('timestamp')}")
+    except Exception as sort_err:
+        print(f"Warning: Could not sort observations by timestamp ({sort_err}). Using first observation found.")
+        latest_obs = data['obs'][0] # Fallback to first if sorting fails
+
+    if not latest_obs:
+         # Should not happen if the above logic is correct, but safety check
+         print("Error: Could not determine the latest observation after processing.")
+         print(f"Raw Response: {raw_response_text}")
+         exit(1)
 
     # --- Extract Data (Using keys from the API response) ---
     timestamp_epoch = latest_obs.get('timestamp')
@@ -85,9 +100,16 @@ try:
     daily_rain_accum_mm = latest_obs.get('precip_accum_local_day_final', latest_obs.get('precip_accum_local_day'))
     # Battery voltage is not available in this API response structure
 
-    # Check if essential data is missing
-    if timestamp_epoch is None or temp_c is None or pressure_mb is None:
-        print(f"Error: Essential data (timestamp, temperature, pressure) missing from observation: {latest_obs}")
+    # Check if essential data is missing and provide specific feedback
+    missing_essentials = []
+    if timestamp_epoch is None: missing_essentials.append("timestamp")
+    if temp_c is None: missing_essentials.append("air_temperature")
+    if pressure_mb is None: missing_essentials.append("pressure (station_pressure or barometric_pressure)")
+
+    if missing_essentials:
+        print(f"Error: Essential data missing from the latest observation: {', '.join(missing_essentials)}")
+        print(f"Latest Observation Data: {latest_obs}")
+        print(f"Raw Response: {raw_response_text}")
         exit(1)
 
     # --- Format Output Data ---
@@ -118,11 +140,15 @@ try:
 
 except requests.exceptions.RequestException as e:
     print(f"Error fetching data from WeatherFlow API: {e}")
+    if raw_response_text:
+        print(f"Raw Response: {raw_response_text}")
     exit(1)
-except (KeyError, IndexError, TypeError) as e:
-    print(f"Error parsing API response: {e}")
-    print(f"Raw response data: {response.text}") # Print raw text in case of JSON parsing error
+except (KeyError, IndexError, TypeError, json.JSONDecodeError) as e: # Added JSONDecodeError
+    print(f"Error processing API response: {e}")
+    print(f"Raw response data: {raw_response_text}") # Use stored raw text
     exit(1)
 except Exception as e:
     print(f"An unexpected error occurred: {e}")
+    if raw_response_text:
+        print(f"Raw Response: {raw_response_text}")
     exit(1)
